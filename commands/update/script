@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+
+#/ command: rundeck-acls:update: "update an ACL policy"
+#/ usage: rerun rundeck-acls:update [ --file <>]  --aclpolicy <>  --url <$RUNDECK_URL> [ --username <$RUNDECK_USER>] [ --password <$RUNDECK_PASSWORD>] [ --apikey <$RUNDECK_APIKEY>] 
+#/ rerun-variables: RERUN, RERUN_VERSION, RERUN_MODULES, RERUN_MODULE_DIR
+#/ option-variables: FILE ACLPOLICY URL USERNAME PASSWORD APIKEY
+
+
+. $RERUN_MODULE_DIR/lib/functions.sh update || { 
+  echo >&2 "Failed loading function library." ; exit 1 ; 
+}
+
+set -o errexit -o nounset -o pipefail
+
+rerun_options_parse "$@"
+
+
+rundeck_authenticate -u "$URL" -U "$USERNAME" -p "${PASSWORD:-}" -k "${APIKEY:-}"
+
+
+[[ ! -n "${FILE:-}" ]] && rerun_die 2 "Requires --file <> option"
+[[ ! -f $FILE ]] && rerun_die 2 "File not found: $FILE"
+
+CURL_OUT=$(mktemp -t curl.out.XXXXXXX)
+POST_CONTENT=$(mktemp -t post.content.XXXXXXX)
+cat >$POST_CONTENT <<EOF
+<contents><![CDATA[$(< $FILE)]]></contents>
+EOF
+
+trap 'rm $POST_CONTENT $CURL_OUT' EXIT; # cleanup on exit
+
+if ! http_code=$(rundeck_curl -w "%{http_code}" --data-binary @$POST_CONTENT \
+	-H Content-Type:application/xml -H Accept:application/xml \
+	-X PUT ${URL}/api/14/system/acl/$ACLPOLICY -o $CURL_OUT)
+then
+	rerun_die 3 "curl request failed (exit code: $?)"
+fi
+
+case ${http_code:-} in
+   	20*) : ;; # successful 
+   	40*) rerun_die "$(xmlstarlet sel -t -m //error -v message $CURL_OUT)" ;;
+	* )  rerun_die 3 "API error ${http_code}: PUT ${URL}/api/14/system/acl/$ACLPOLICY" ;;
+esac 
+
+# Done. Exit with last command exit status.
+exit $?
+

@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+
+#/ command: rundeck-acls:delete: "delete an ACL policy"
+#/ usage: rerun rundeck-acls:delete  --aclpolicy <>  --url <$RUNDECK_URL> [ --username <$RUNDECK_USER>] [ --password <$RUNDECK_PASSWORD>] [ --apikey <$RUNDECK_APIKEY>] 
+#/ rerun-variables: RERUN, RERUN_VERSION, RERUN_MODULES, RERUN_MODULE_DIR
+#/ option-variables: ACLPOLICY URL USERNAME PASSWORD APIKEY
+
+. $RERUN_MODULE_DIR/lib/functions.sh delete || { 
+  echo >&2 "Failed loading function library." ; exit 1 ; 
+}
+
+
+set -o errexit -o nounset -o pipefail
+
+rerun_options_parse "$@"
+
+#
+# Read authentication credentials
+#
+rundeck_authenticate -u "$URL" -U "$USERNAME" -p "${PASSWORD:-}" -k "${APIKEY:-}"
+
+CURL_OUT=$(mktemp -t curl.out.XXXXXXX)
+trap 'rm $CURL_OUT' EXIT; # cleanup on exit
+
+if ! http_code=$(rundeck_curl -w "%{http_code}" \
+	-X DELETE ${URL}/api/15/system/acl/$ACLPOLICY -o $CURL_OUT)
+then
+	rerun_die 3 "curl request failed (exit code: $?)"
+fi
+
+case ${http_code:-} in
+   	204) : ;; # successful
+   	404) : ;; # aclpolicy did not exist.
+	403) rerun_die "$(xmlstarlet sel -t -m //error -v message)" ;;
+	* ) rerun_die 3 "API error ${http_code:-}: DELETE ${URL}/api/15/system/acl/$ACLPOLICY" ;;
+esac    
+
+
+# Done. Exit with last command exit status.
+exit $?
+
