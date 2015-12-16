@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
 #/ command: rundeck-acls:create: "create an ACL policy"
-#/ usage: rerun rundeck-acls:create  --aclpolicy <>  --url <$RUNDECK_URL> [ --username <$RUNDECK_USER>] [ --password <$RUNDECK_PASSWORD>] [ --apikey <$RUNDECK_APIKEY>] [ --file <>] 
+#/ usage: rerun rundeck-acls:create  --aclpolicy <> [ --file <>] [ --project <>]  --url <$RUNDECK_URL> [ --username <$RUNDECK_USER>] [ --password <$RUNDECK_PASSWORD>] [ --apikey <$RUNDECK_APIKEY>] [ --group <>] 
 #/ rerun-variables: RERUN, RERUN_VERSION, RERUN_MODULES, RERUN_MODULE_DIR
-#/ option-variables: ACLPOLICY URL USERNAME PASSWORD APIKEY FILE
+#/ option-variables: ACLPOLICY FILE PROJECT URL USERNAME PASSWORD APIKEY GROUP
 
 . $RERUN_MODULE_DIR/lib/functions.sh create || { 
   echo >&2 "Failed loading function library." ; exit 1 ; 
@@ -25,13 +25,16 @@ rundeck_authenticate -u "$URL" -U "$USERNAME" -p "${PASSWORD:-}" -k "${APIKEY:-}
 
 
 [[ ! -n "${FILE:-}" ]] && rerun_die 2 "Requires --file <> option"
-[[ ! -f $FILE ]] && rerun_die 2 "File not found: $FILE"
+[[ ! -f "$FILE" ]]     && rerun_die 2 "File not found: $FILE"
+
+
 
 POST_CONTENT=$(mktemp -t post.content.XXXXXXX)
 cat >$POST_CONTENT <<EOF
-<contents><![CDATA[$(< $FILE)]]></contents>
+<contents><![CDATA[$(template_subst $FILE)]]></contents>
 EOF
 ! xmlstarlet val -q $POST_CONTENT && rerun_die "Error encoding aclpolicy content"
+
 
 CURL_OUT=$(mktemp -t curl.out.XXXXXXX)
 trap 'rm $POST_CONTENT $CURL_OUT' EXIT; # cleanup on exit
@@ -45,6 +48,7 @@ fi
 
 case ${http_code:-} in
    	20*) : ;; # successful 
+   	400) rerun_die "validation error: $(xmlstarlet sel -t -m //error -v . $CURL_OUT)" ;;
    	40*) rerun_die "$(xmlstarlet sel -t -m //error -v message $CURL_OUT)" ;;
 	* )  rerun_die 3 "API error ${http_code:-}: POST ${URL}/api/14/system/acl/$ACLPOLICY" ;;
 esac 
