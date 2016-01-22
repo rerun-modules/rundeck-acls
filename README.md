@@ -13,17 +13,18 @@ Most of the rundeck-acls commands use the same options to connect to the rundeck
 
 ## Examples
 
-There are no ACLs for this project yet:
+### System level ACLs
+There are no ACLs for this instance yet:
 
 	$ rerun  rundeck-acls:list
 
-Add a new ACL policy to the project:
+Add a new ACL policy:
 
 	$ rerun  rundeck-acls:create --file anyone-allow-resource.aclpolicy
 
 Run the listing again. The 'anyone-allow-resource.aclpolicy' policy is shown.
 
-	$ rerun  rundeck-acls:list --project foo
+	$ rerun  rundeck-acls:list 
 	anyone-allow-resource.aclpolicy
 
 Get the ACL policy file
@@ -42,3 +43,18 @@ Get the ACL policy file
 Delete an ACL Policy
 
 	$ rerun  rundeck-acls:delete --aclpolicy anyone-allow-resource.aclpolicy
+
+### Project level ACLs
+
+There are no ACLs for this project yet:
+
+	$ rerun  rundeck-acls:list --project anvils
+
+Add a new ACL policy:
+
+	$ rerun  rundeck-acls:create --file dev-jobs-allow.aclpolicy
+
+Run the listing again.
+
+	$ rerun  rundeck-acls:list --project anvils
+	dev-jobs-allow.aclpolicy

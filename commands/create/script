@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
 #/ command: rundeck-acls:create: "create an ACL policy"
-#/ usage: rerun rundeck-acls:create  --aclpolicy <> [ --file <>] [ --project <>]  --url <$RUNDECK_URL> [ --username <$RUNDECK_USER>] [ --password <$RUNDECK_PASSWORD>] [ --apikey <$RUNDECK_APIKEY>] [ --group <>] 
+#/ usage: rerun rundeck-acls:create  --aclpolicy <> [ --file <>] [ --project <>] [ --group <>]  --url <$RUNDECK_URL> [ --username <$RUNDECK_USER>] [ --password <$RUNDECK_PASSWORD>] [ --apikey <$RUNDECK_APIKEY>] 
 #/ rerun-variables: RERUN, RERUN_VERSION, RERUN_MODULES, RERUN_MODULE_DIR
-#/ option-variables: ACLPOLICY FILE PROJECT URL USERNAME PASSWORD APIKEY GROUP
+#/ option-variables: ACLPOLICY FILE PROJECT GROUP URL USERNAME PASSWORD APIKEY
 
 . $RERUN_MODULE_DIR/lib/functions.sh create || { 
   echo >&2 "Failed loading function library." ; exit 1 ; 
@@ -21,7 +21,6 @@ rerun_options_parse "$@"
 #
 # Read authentication credentials
 #
-rundeck_authenticate -u "$URL" -U "$USERNAME" -p "${PASSWORD:-}" -k "${APIKEY:-}"
 
 
 [[ ! -n "${FILE:-}" ]] && rerun_die 2 "Requires --file <> option"
@@ -35,13 +34,21 @@ cat >$POST_CONTENT <<EOF
 EOF
 ! xmlstarlet val -q $POST_CONTENT && rerun_die "Error encoding aclpolicy content"
 
+if [[ -n "${PROJECT:-}" ]]
+then
+	APIURL=${URL}/api/14/project/$PROJECT/acl/$ACLPOLICY
+else
+	APIURL=${URL}/api/14/system/acl/$ACLPOLICY
+fi
 
 CURL_OUT=$(mktemp -t curl.out.XXXXXXX)
 trap 'rm $POST_CONTENT $CURL_OUT' EXIT; # cleanup on exit
 
+rundeck_authenticate -u "$URL" -U "${USERNAME:-}" -p "${PASSWORD:-}" -k "${APIKEY:-}"
+
 if ! http_code=$(rundeck_curl -w "%{http_code}" --data-binary @$POST_CONTENT \
 	-H Content-Type:application/xml -H Accept:application/xml \
-	-X POST ${URL}/api/14/system/acl/$ACLPOLICY -o $CURL_OUT)
+	-X POST "${APIURL}" -o $CURL_OUT)
 then
 		rerun_die 3 "curl request failed (exit code: $?)"
 fi
@@ -50,7 +57,7 @@ case ${http_code:-} in
    	20*) : ;; # successful 
    	400) rerun_die "validation error: $(xmlstarlet sel -t -m //error -v . $CURL_OUT)" ;;
    	40*) rerun_die "$(xmlstarlet sel -t -m //error -v message $CURL_OUT)" ;;
-	* )  rerun_die 3 "API error ${http_code:-}: POST ${URL}/api/14/system/acl/$ACLPOLICY" ;;
+	* )  rerun_die 3 "API error ${http_code:-}: POST ${APIURL}" ;;
 esac 
 # Done. Exit with last command exit status.
 exit $?

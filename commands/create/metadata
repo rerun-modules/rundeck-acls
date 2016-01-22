@@ -3,4 +3,4 @@
 # Tue Dec 15 13:40:59 PST 2015
 NAME=create
 DESCRIPTION="create an ACL policy"
-OPTIONS="aclpolicy file project group url username password apikey"
+OPTIONS="aclpolicy group file project url username password apikey"
