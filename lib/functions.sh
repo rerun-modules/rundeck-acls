@@ -39,7 +39,7 @@ CURLOPTS="-k -s -S -L"
 #
 # Notes: 
 rundeck_curl() {
-	command curl --user-agent "rerun/$RERUN_VERSION $(basename ${RERUN_MODULE_DIR})/${RERUN_MODULE_VERSION:-}" $CURLOPTS "$@"
+	command curl --user-agent "rerun/$RERUN_VERSION rundeck-project/${RERUN_MODULE_VERSION:-}" $CURLOPTS "$@"
 }
 
 #
@@ -68,14 +68,12 @@ rundeck_login_session(){
 	local COOKIES=$(mktemp -t "cookies.XXXXX")
 
 	local http_code errors
-	local -r loginurl="${url}/j_security_check"
+	local loginurl="${url}/j_security_check"
+	local xmlstarletopts='-H'
 
 	# Request the login form.
-	if ! http_code=$(rundeck_curl -c $COOKIES -b $COOKIES --fail -w "%{http_code}" $url 2>/dev/null >/dev/null)
+	if http_code=$(rundeck_curl --fail -w "%{http_code}" $url 2>/dev/null)
 	then
-		rerun_die 3 "curl request failed to $url (exit code: $?)"
-    fi
-
     # Temporary file to store results.
     local -r curl_out=$(mktemp -t "login.XXXXX")
 
@@ -85,13 +83,28 @@ rundeck_login_session(){
 	then
 		rerun_die 3 "curl request failed to $loginurl (exit code: $?)"
 	fi
+	else
+		if [ "$http_code" = "404" ]
+		then
+			xmlstarletopts=''
+			local loginurl="${url}/api/2/system/info"
+			local -r curl_out=$(mktemp -t "login.XXXXX")
+		  CURLOPTS="$CURLOPTS -u ${user}:${password}"
+			if ! http_code=$(rundeck_curl -c $COOKIES -b $COOKIES -w "%{http_code}" $loginurl 2>/dev/null -o $curl_out)
+			then
+				rerun_die 3 "curl request failed to $loginurl (exit code: $?)"
+			fi
+		else
+			rerun_die 3 "curl request failed to $url (exit code: $?)"
+		fi
+	fi
 	case ${http_code:-} in
    		200) : ;; # successful
 		* ) rerun_die 3 "login failure (http_code: '$http_code'): ${url}" ;;
 	esac
 	# Parse the login result page. It might contain an error.
 	# Convert the result into well formed xhtml so we can query it.
-	if ! errors=$(xmlstarlet fo -R -H $curl_out 2>/dev/null |
+	if ! errors=$(xmlstarlet fo -R $xmlstarletopts $curl_out 2>/dev/null |
 		# Query the result page for the error message.
 		xmlstarlet sel -N x=http://www.w3.org/1999/xhtml \
 			-t -m "//x:div[@class='login']/x:form/x:div[@class='message']/x:span[@class='error']" -v .)
@@ -128,7 +141,7 @@ rundeck_authenticate() {
 	if [[ -n "${password:-}" && -n "${username:-}" ]]
 	then
 		COOKIES=$(rundeck_login_session "$URL" "$username" "$password")
-		CURLOPTS="$CURLOPTS -c $COOKIES -b $COOKIES"
+		CURLOPTS="$CURLOPTS -c $COOKIES -b $COOKIES -u ${username}:${password}"
 	elif [[ -z "${password:-}" && -n "${apikey:-}" ]]; then
 		CURLOPTS="$CURLOPTS -H X-Rundeck-Auth-Token:$apikey"
 	else
