@@ -165,3 +165,16 @@ template_subst() {
 		cat $FILE
 	fi
 }
+
+get_file_content() {
+	[[ $# != 1 ]] && rerun_die 2 "File path not specified"
+	local path=$1
+
+	if [[ "$path" =~ (https?)://[.]+ ]]
+	then
+		rerun_log info "getting file content from url: $path"
+		curl -fL $path
+	else
+		cat $path
+	fi
+}

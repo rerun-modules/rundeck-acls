@@ -3,4 +3,4 @@
 # Tue Dec 15 13:49:22 PST 2015
 NAME=update
 DESCRIPTION="update an ACL policy"
-OPTIONS="file aclpolicy url username password apikey"
+OPTIONS="aclpolicy project file url username password apikey"

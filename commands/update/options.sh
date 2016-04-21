@@ -24,6 +24,7 @@ rerun_options_parse() {
         case "$OPT" in
             --file) rerun_option_check $# $1; FILE=$2 ; shift ;;
             --aclpolicy) rerun_option_check $# $1; ACLPOLICY=$2 ; shift ;;
+            --project) rerun_option_check $# $1; PROJECT=$2 ; shift ;;
             --url) rerun_option_check $# $1; URL=$2 ; shift ;;
             --username) rerun_option_check $# $1; USERNAME=$2 ; shift ;;
             --password) rerun_option_check $# $1; PASSWORD=$2 ; shift ;;
@@ -59,6 +60,7 @@ rerun_options_parse() {
 
 # If not already set, initialize the options variables to null.
 : ${FILE:=}
+: ${PROJECT:=}
 : ${ACLPOLICY:=}
 : ${URL:=}
 : ${USERNAME:=}

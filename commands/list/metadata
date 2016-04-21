@@ -3,4 +3,4 @@
 # Tue Dec 15 13:02:40 PST 2015
 NAME=list
 DESCRIPTION="list acl policies"
-OPTIONS="url username password apikey"
+OPTIONS="project url username password apikey"

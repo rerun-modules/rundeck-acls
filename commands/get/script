@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
 #/ command: rundeck-acls:get: "get an ACL policy"
-#/ usage: rerun rundeck-acls:get  --url <$RUNDECK_URL> [ --username <$RUNDECK_USER>] [ --password <$RUNDECK_PASSWORD>] [ --apikey <$RUNDECK_APIKEY>]  --aclpolicy <> 
+#/ usage: rerun rundeck-acls:get [--project <>] --url <$RUNDECK_URL> [ --username <$RUNDECK_USER>] [ --password <$RUNDECK_PASSWORD>] [ --apikey <$RUNDECK_APIKEY>]  --aclpolicy <> 
 #/ rerun-variables: RERUN, RERUN_VERSION, RERUN_MODULES, RERUN_MODULE_DIR
-#/ option-variables: URL USERNAME PASSWORD APIKEY ACLPOLICY
+#/ option-variables: PROJECT URL USERNAME PASSWORD APIKEY ACLPOLICY
 
 
 
@@ -20,13 +20,20 @@ rerun_options_parse "$@"
 
 # Command implementation
 # ----------------------
-rundeck_authenticate -u "$URL" -U "$USERNAME" -p "${PASSWORD:-}" -k "${APIKEY:-}"
+if [[ -n "${PROJECT:-}" ]]
+then
+	APIURL=${URL}/api/14/project/$PROJECT/acl/$ACLPOLICY
+else
+	APIURL=${URL}/api/14/system/acl/$ACLPOLICY
+fi
+
+rundeck_authenticate -u "$URL" -U "${USERNAME:-}" -p "${PASSWORD:-}" -k "${APIKEY:-}"
 
 CURL_OUT=$(mktemp -t curl.out.XXXXXXXXXX)
 trap 'rm $CURL_OUT' EXIT; # cleanup on exit
 
 if ! http_code=$(rundeck_curl -w "%{http_code}" -H "Accept: application/xml" \
-	-X GET ${URL}/api/14/system/acl/$ACLPOLICY -o $CURL_OUT)
+	-X GET "${APIURL}" -o $CURL_OUT)
 then
 	rerun_die 3 "curl request failed (exit code: $?)"
 fi
@@ -35,7 +42,7 @@ fi
 case ${http_code:-} in
    	200) : ;; # successful
 	40*) rerun_die "$(xmlstarlet sel -t -m //error -v message $CURL_OUT)" ;;
-	* ) rerun_die 3 "API error ${http_code:-}: ${URL}/api/14/system/acl/$ACLPOLICY"
+	* ) rerun_die 3 "API error ${http_code:-}: ${APIURL}"
 esac  
 
 
