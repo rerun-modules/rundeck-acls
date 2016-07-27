@@ -34,7 +34,7 @@ cat >$POST_CONTENT <<EOF
 EOF
 ! xmlstarlet val -q $POST_CONTENT && rerun_die "Error encoding aclpolicy content"
 
-if [[ -n "${PROJECT:-}" ]]
+if [[ -n "${PROJECT:-}" ]] && ! grep -A1 '^context:' $FILE | grep $'application:[ \t]*rundeck' >/dev/null
 then
 	APIURL=${URL}/api/14/project/$PROJECT/acl/$ACLPOLICY
 else

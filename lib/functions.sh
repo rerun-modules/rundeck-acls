@@ -84,7 +84,7 @@ rundeck_login_session(){
 		rerun_die 3 "curl request failed to $loginurl (exit code: $?)"
 	fi
 	else
-		if [ "$http_code" = "404" ]
+		if [[ "$http_code" =~ ^40 ]]
 		then
 			xmlstarletopts=''
 			local loginurl="${url}/api/2/system/info"
@@ -157,7 +157,7 @@ template_subst() {
 	local FILE=$1
 	sed_exprs=()
 	[[ -n "${PROJECT:-}" ]] && sed_exprs=(${sed_exprs[*]:-} -e "s/@PROJECT@/$PROJECT/g")
-	[[ -n "${GROUPS:-}"  ]] && sed_exprs=(${sed_exprs[*]:-} -e "s/@GROUP@/$GROUPS/g")
+	[[ -n "${GROUP:-}"  ]] && sed_exprs=(${sed_exprs[*]:-} -e "s/@GROUP@/$GROUP/g")
 	if [[ -n "${sed_exprs[*]}" ]]
 	then
 		sed ${sed_exprs[*]}	$FILE
