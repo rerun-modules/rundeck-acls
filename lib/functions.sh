@@ -84,7 +84,7 @@ rundeck_login_session(){
 		rerun_die 3 "curl request failed to $loginurl (exit code: $?)"
 	fi
 	else
-		if [ "$http_code" = "404" ]
+		if [[ "$http_code" =~ ^40 ]]
 		then
 			xmlstarletopts=''
 			local loginurl="${url}/api/2/system/info"
